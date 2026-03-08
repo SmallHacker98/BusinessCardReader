@@ -1,0 +1,100 @@
+.ocr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ocr-modal {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  padding: 32px 24px 28px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+  border: 1px solid var(--separator-strong);
+}
+
+.ocr-modal-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.ocr-modal h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.ocr-modal p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.ocr-modal-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.ocr-modal-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* プログレスバー */
+.ocr-progress-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ocr-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ocr-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.ocr-progress-pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ボタン */
+.ocr-modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.ocr-modal-actions .btn {
+  flex: 1;
+  padding: 14px;
+}
