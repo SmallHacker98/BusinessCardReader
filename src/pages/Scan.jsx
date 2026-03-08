@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { NavBar } from '../components/NavBar';
 import { runOCR } from '../ocr/ocrEngine';
 import { parseFields } from '../ocr/fieldParser';
-import { preprocessImage } from '../storage/photoStorage';
+import { preprocessImage, compressForStorage } from '../storage/photoStorage';
 import { useContacts } from '../hooks/useContacts';
 import './Scan.css';
 
@@ -21,7 +21,8 @@ export const Scan = () => {
 
   const [step, setStep] = useState(STEPS.SELECT);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [processedBlob, setProcessedBlob] = useState(null);
+  const [ocrBlob, setOcrBlob] = useState(null);       // OCR用（高解像度・二値化）
+  const [storageBlob, setStorageBlob] = useState(null); // 保存用（圧縮JPEG）
   const [ocrProgress, setOcrProgress] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -33,18 +34,23 @@ export const Scan = () => {
     setError(null);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
-    const blob = await preprocessImage(file);
-    setProcessedBlob(blob);
+    // OCR用とストレージ用を並列処理
+    const [ocr, storage] = await Promise.all([
+      preprocessImage(file),
+      compressForStorage(file),
+    ]);
+    setOcrBlob(ocr);
+    setStorageBlob(storage);
     setStep(STEPS.PREVIEW);
   };
 
   const handleOCR = async () => {
-    if (!processedBlob) return;
+    if (!ocrBlob) return;
     setStep(STEPS.OCR);
     setOcrProgress(0);
     setError(null);
     try {
-      const result = await runOCR(processedBlob, setOcrProgress);
+      const result = await runOCR(ocrBlob, setOcrProgress);
       const parsed = parseFields(result);
       setForm({
         name:        parsed.name        || '',
@@ -76,7 +82,7 @@ export const Scan = () => {
     }
     setSaving(true);
     try {
-      const contact = await saveContact(form, processedBlob);
+      const contact = await saveContact(form, storageBlob);
       navigate(`/contact/${contact.id}`, { replace: true });
     } catch {
       setError('保存に失敗しました');
@@ -88,7 +94,8 @@ export const Scan = () => {
   const handleReset = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
-    setProcessedBlob(null);
+    setOcrBlob(null);
+    setStorageBlob(null);
     setForm(EMPTY_FORM);
     setStep(STEPS.SELECT);
     setError(null);
