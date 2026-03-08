@@ -1,0 +1,67 @@
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--separator);
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.contact-card:active {
+  background: var(--bg-tertiary);
+}
+
+.contact-card:last-child {
+  border-bottom: none;
+}
+
+.contact-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-card-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-card-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-card-sub .dept {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.contact-card-email {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-card-arrow {
+  font-size: 20px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}

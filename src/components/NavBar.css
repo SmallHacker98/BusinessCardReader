@@ -1,0 +1,52 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--separator);
+  padding-top: var(--safe-top);
+  flex-shrink: 0;
+}
+
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  height: var(--nav-height);
+  padding: 0 8px;
+  position: relative;
+}
+
+.navbar-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.navbar-large .navbar-title {
+  opacity: 0;
+}
+
+.navbar-large-title {
+  font-size: 34px;
+  font-weight: 700;
+  padding: 4px 16px 16px;
+  letter-spacing: -0.5px;
+}
+
+.navbar-left, .navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+
+.navbar-right {
+  margin-left: auto;
+}

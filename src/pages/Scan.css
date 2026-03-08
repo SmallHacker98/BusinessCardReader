@@ -1,0 +1,174 @@
+/* ── SELECT ── */
+.scan-select {
+  padding: 40px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.scan-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.scan-hero-icon { font-size: 64px; margin-bottom: 4px; }
+.scan-hero h2   { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+.scan-hero p    { color: var(--text-secondary); font-size: 15px; line-height: 1.6; }
+
+.scan-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scan-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+}
+
+/* ── PREVIEW ── */
+.scan-preview {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.preview-image-wrap {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--separator-strong);
+  background: #000;
+}
+
+.preview-image {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+  max-height: 260px;
+}
+
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.preview-actions .btn { width: 100%; padding: 16px; }
+
+/* ── OCR中 ── */
+.scan-ocr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.ocr-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.ocr-status h3      { font-size: 18px; font-weight: 600; }
+.ocr-lang-note      { font-size: 12px; color: var(--text-tertiary); }
+.ocr-progress-text  { font-size: 13px; color: var(--text-secondary); }
+
+/* ── EDIT ── */
+.scan-edit { padding-bottom: 20px; }
+
+.edit-preview { padding: 16px 16px 0; }
+.edit-preview img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--separator-strong);
+  background: #000;
+  display: block;
+}
+
+.error-banner {
+  margin: 10px 16px 0;
+  background: rgba(255,69,58,0.1);
+  border: 1px solid rgba(255,69,58,0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--accent-red);
+  font-size: 14px;
+}
+
+/* ── フォーム行（縦持ち iPhone に最適化） ── */
+.form-card { overflow: visible; }
+
+.form-row {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--separator);
+  gap: 8px;
+}
+
+/* テキストエリア行は上揃え */
+.form-row-textarea {
+  align-items: flex-start;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.form-row.last { border-bottom: none; }
+
+/* ラベル：固定幅・折り返し禁止 */
+.form-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 60px;           /* 短め固定でinputに最大幅を渡す */
+}
+
+/* テキストエリア用ラベルは上揃え */
+.form-label-top { padding-top: 2px; }
+
+/* 入力欄：残り幅を全部使う */
+.form-input {
+  flex: 1;
+  min-width: 0;          /* flexで縮む */
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: var(--font);
+  padding: 14px 0;
+  text-align: right;
+}
+
+.form-input::placeholder { color: var(--text-tertiary); }
+
+/* テキストエリア：複数行対応 */
+.form-textarea {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: var(--font);
+  line-height: 1.6;
+  resize: none;
+  text-align: right;
+  padding: 0;
+  overflow: hidden;      /* 行数に応じて自動伸長 */
+}
+
+.form-textarea::placeholder {
+  color: var(--text-tertiary);
+  text-align: right;
+}
