@@ -2,57 +2,68 @@ import React, { useState, useEffect } from 'react';
 import { preloadOCR, setOCRCallbacks, isOCRReady } from '../ocr/ocrEngine';
 import './OCRSetupModal.css';
 
-const STORAGE_KEY = 'ocr_setup_done';
+const STORAGE_KEY = 'ocr_setup_done_v2';
 
-/**
- * 初回起動時にOCRデータのダウンロードを確認するモーダル
- * 
- * ダウンロード済み（2回目以降）は自動でスキップ。
- */
 export const OCRSetupModal = ({ onReady }) => {
-  const [phase, setPhase] = useState('idle'); // idle | confirm | downloading | done | error
+  const [phase, setPhase] = useState('checking'); // checking|confirm|downloading|done|error
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    // すでにダウンロード済みならスキップ
-    const done = localStorage.getItem(STORAGE_KEY);
-    if (done === 'true' || isOCRReady()) {
+    // workerがすでに起動済み（2回目以降 or preloadが完了済み）
+    if (isOCRReady()) {
       onReady();
       return;
     }
+    // 前回ダウンロード済みフラグがあればモーダルなしで起動
+    // ただしpreloadOCR()は必ず呼んでworkerを初期化する
+    const done = localStorage.getItem(STORAGE_KEY);
+    if (done === 'true') {
+      // バックグラウンドで初期化しつつ即onReady
+      startDownload(false);
+      onReady();
+      return;
+    }
+    // 初回：確認ダイアログを表示
     setPhase('confirm');
   }, []);
+
+  const startDownload = (showProgress) => {
+    setOCRCallbacks({
+      onProgress: (pct) => {
+        if (showProgress) setProgress(pct);
+      },
+      onDone: () => {
+        localStorage.setItem(STORAGE_KEY, 'true');
+        if (showProgress) {
+          setProgress(100);
+          setPhase('done');
+          setTimeout(() => onReady(), 600);
+        }
+      },
+      onError: (e) => {
+        if (showProgress) {
+          setErrorMsg('ダウンロードに失敗しました。通信環境を確認して再度お試しください。');
+          setPhase('error');
+        }
+      },
+    });
+    preloadOCR();
+  };
 
   const handleYes = () => {
     setPhase('downloading');
     setProgress(0);
-
-    setOCRCallbacks({
-      onProgress: (pct) => setProgress(pct),
-      onDone: () => {
-        localStorage.setItem(STORAGE_KEY, 'true');
-        setProgress(100);
-        setPhase('done');
-        setTimeout(() => onReady(), 800);
-      },
-      onError: (e) => {
-        setErrorMsg('ダウンロードに失敗しました。通信環境を確認して再度お試しください。');
-        setPhase('error');
-      },
-    });
-
-    preloadOCR();
+    startDownload(true);
   };
 
   const handleCancel = () => {
-    // アプリを「終了」— PWAなのでタブを閉じる
     window.close();
-    // window.close()が効かないブラウザ向けのフォールバック
     document.body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;
-                  background:#000;color:#fff;font-family:sans-serif;text-align:center;padding:32px;">
-        <p>アプリを終了しました。<br>ホーム画面のアイコンを閉じてください。</p>
+      <div style="display:flex;align-items:center;justify-content:center;
+                  height:100vh;background:#000;color:#fff;
+                  font-family:sans-serif;text-align:center;padding:32px;">
+        <p>アプリを終了しました。<br/>ホーム画面のアイコンから再度開けます。</p>
       </div>`;
   };
 
@@ -62,17 +73,17 @@ export const OCRSetupModal = ({ onReady }) => {
     setErrorMsg('');
   };
 
-  if (phase === 'idle' || phase === 'done') return null;
+  // checkingは一瞬なので表示しない
+  if (phase === 'checking' || phase === 'done') return null;
 
   return (
     <div className="ocr-modal-overlay">
       <div className="ocr-modal">
 
-        {/* 確認フェーズ */}
         {phase === 'confirm' && (
           <>
             <div className="ocr-modal-icon">📥</div>
-            <h2>OCRデータのダウンロード</h2>
+            <h2>OCRデータの準備</h2>
             <p>
               名刺の文字認識に必要なデータ（約40MB）を
               ダウンロードします。<br />
@@ -90,30 +101,21 @@ export const OCRSetupModal = ({ onReady }) => {
           </>
         )}
 
-        {/* ダウンロード中 */}
         {phase === 'downloading' && (
           <>
             <div className="ocr-modal-icon">⏬</div>
             <h2>ダウンロード中...</h2>
-            <p className="ocr-modal-sub">
-              そのままお待ちください
-            </p>
+            <p className="ocr-modal-sub">そのままお待ちください</p>
             <div className="ocr-progress-wrap">
               <div className="ocr-progress-bar">
-                <div
-                  className="ocr-progress-fill"
-                  style={{ width: `${progress}%` }}
-                />
+                <div className="ocr-progress-fill" style={{ width: `${progress}%` }} />
               </div>
               <span className="ocr-progress-pct">{progress}%</span>
             </div>
-            <p className="ocr-modal-hint">
-              アプリを閉じないでください
-            </p>
+            <p className="ocr-modal-hint">アプリを閉じないでください</p>
           </>
         )}
 
-        {/* エラー */}
         {phase === 'error' && (
           <>
             <div className="ocr-modal-icon">⚠️</div>

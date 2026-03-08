@@ -1,8 +1,9 @@
 /**
- * OCRエンジン
+ * OCRエンジン（Tesseract.js）
  * 
- * 初回起動時に言語データ（約40MB）をダウンロード。
- * ダウンロード進捗をコールバックで外部に通知する。
+ * - App起動時に必ずpreloadOCR()を呼ぶ
+ * - ダウンロード進捗はsetOCRCallbacksで外部から受け取る
+ * - workerの準備完了/失敗もコールバックで通知
  */
 import { createWorker } from 'tesseract.js';
 
@@ -11,54 +12,47 @@ const LANGS = 'jpn+eng+kor+chi_sim';
 let workerPromise = null;
 let worker = null;
 
-// 外部から登録するコールバック
-let _onDownloadProgress = null; // (pct: 0-100) => void
-let _onDownloadDone = null;     // () => void
-let _onDownloadError = null;    // (err) => void
+let _onProgress = null;
+let _onDone     = null;
+let _onError    = null;
 
 export const setOCRCallbacks = ({ onProgress, onDone, onError }) => {
-  _onDownloadProgress = onProgress;
-  _onDownloadDone     = onDone;
-  _onDownloadError    = onError;
+  _onProgress = onProgress;
+  _onDone     = onDone;
+  _onError    = onError;
 };
 
-/**
- * アプリ起動時に呼ぶ（バックグラウンド初期化）
- */
 export const preloadOCR = () => {
   if (workerPromise) return workerPromise;
 
-  workerPromise = createWorker(LANGS, 1, {
-    logger: (m) => {
-      // Tesseractのダウンロード進捗を捕捉
-      if (m.status === 'loading tesseract core' ||
-          m.status === 'loading language traineddata' ||
-          m.status === 'initializing tesseract' ||
-          m.status === 'initialized tesseract') {
-        const pct = Math.round((m.progress || 0) * 100);
-        _onDownloadProgress?.(pct);
-      }
-    },
-  }).then(w => {
-    worker = w;
-    _onDownloadDone?.();
-    console.log('[OCR] Worker ready');
-    return w;
-  }).catch(e => {
-    console.warn('[OCR] Worker init failed:', e);
-    _onDownloadError?.(e);
-    workerPromise = null;
-    worker = null;
-    return null;
-  });
+  workerPromise = (async () => {
+    try {
+      const w = await createWorker(LANGS, 1, {
+        logger: (m) => {
+          // Tesseract v4/v5 の進捗イベント
+          if (typeof m.progress === 'number') {
+            const pct = Math.round(m.progress * 100);
+            _onProgress?.(pct);
+          }
+        },
+      });
+      worker = w;
+      _onDone?.();
+      return w;
+    } catch (e) {
+      console.error('[OCR] init error:', e);
+      workerPromise = null;
+      worker = null;
+      _onError?.(e);
+      return null;
+    }
+  })();
 
   return workerPromise;
 };
 
-/**
- * OCR実行
- */
 export const runOCR = async (imageBlob, onProgress) => {
+  // workerがなければここで起動（フォールバック）
   if (!workerPromise) preloadOCR();
 
   onProgress?.(5);
@@ -68,11 +62,10 @@ export const runOCR = async (imageBlob, onProgress) => {
   onProgress?.(20);
 
   const url = URL.createObjectURL(imageBlob);
-  let currentPct = 20;
-
+  let pct = 20;
   const timer = setInterval(() => {
-    currentPct = Math.min(currentPct + 4, 88);
-    onProgress?.(currentPct);
+    pct = Math.min(pct + 4, 88);
+    onProgress?.(pct);
   }, 600);
 
   try {

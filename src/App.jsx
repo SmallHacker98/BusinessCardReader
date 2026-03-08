@@ -19,11 +19,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {/* OCRデータ未ダウンロードの場合はモーダルを表示 */}
       {!ocrReady && (
         <OCRSetupModal onReady={() => setOcrReady(true)} />
       )}
-
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <Routes>
