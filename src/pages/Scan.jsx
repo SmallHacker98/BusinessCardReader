@@ -9,12 +9,6 @@ import './Scan.css';
 
 const STEPS = { SELECT: 'select', PREVIEW: 'preview', OCR: 'ocr', EDIT: 'edit' };
 
-const STAGE_LABEL = {
-  model: 'AIモデル読み込み中...',
-  ocr:   'テキスト認識中...',
-  done:  '完了',
-};
-
 const EMPTY_FORM = {
   name: '', companyName: '', department: '',
   title: '', phone: '', fax: '', email: '', address: '',
@@ -30,7 +24,6 @@ export const Scan = () => {
   const [ocrBlob, setOcrBlob] = useState(null);
   const [storageBlob, setStorageBlob] = useState(null);
   const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrStage, setOcrStage] = useState('model');
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -54,14 +47,9 @@ export const Scan = () => {
     if (!ocrBlob) return;
     setStep(STEPS.OCR);
     setOcrProgress(0);
-    setOcrStage('model');
     setError(null);
     try {
-      const result = await runOCR(
-        ocrBlob,
-        setOcrProgress,
-        setOcrStage,
-      );
+      const result = await runOCR(ocrBlob, setOcrProgress);
       const parsed = parseFields(result);
       setForm({
         name:        parsed.name        || '',
@@ -136,10 +124,6 @@ export const Scan = () => {
               <h2>名刺をスキャン</h2>
               <p>カメラで撮影するか<br />写真を選んでください</p>
             </div>
-            <div className="scan-hint card">
-              <p className="hint-title">📌 初回のみ</p>
-              <p className="hint-body">AIモデル（約400MB）を自動ダウンロードします。WiFi環境を推奨します。2回目以降はオフラインで動作します。</p>
-            </div>
             <div className="scan-actions">
               <input ref={fileRef} type="file" accept="image/*" capture="environment"
                 onChange={handleFileSelect} style={{ display: 'none' }} id="camera-input" />
@@ -182,12 +166,8 @@ export const Scan = () => {
           <div className="scan-ocr fade-in">
             <div className="ocr-status">
               <div className="spinner" style={{ width: 44, height: 44, borderWidth: 3 }} />
-              <h3>{STAGE_LABEL[ocrStage] || '処理中...'}</h3>
-              <p className="ocr-lang-note">
-                {ocrStage === 'model'
-                  ? '初回はモデルのダウンロードに時間がかかります'
-                  : '日本語・英語・韓国語・中国語'}
-              </p>
+              <h3>読み取り中...</h3>
+              <p className="ocr-lang-note">日本語・英語・韓国語・中国語</p>
               <div className="progress-bar" style={{ width: 240 }}>
                 <div className="progress-fill" style={{ width: `${ocrProgress}%` }} />
               </div>

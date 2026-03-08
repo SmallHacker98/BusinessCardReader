@@ -7,11 +7,14 @@ import { Scan } from './pages/Scan';
 import { Companies } from './pages/Companies';
 import { TabBar } from './components/TabBar';
 import { initStorage } from './db/database';
+import { preloadOCR } from './ocr/ocrEngine';
 import './styles/global.css';
 
 export default function App() {
   useEffect(() => {
     initStorage();
+    // バックグラウンドでOCR workerを先読み（初回OCRの待ち時間を短縮）
+    preloadOCR();
   }, []);
 
   return (
