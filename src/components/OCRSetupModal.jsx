@@ -4,7 +4,7 @@ import './OCRSetupModal.css';
 const STORAGE_KEY = 'ocr_setup_acknowledged';
 
 /**
- * 初回起動時のみ「約40MBダウンロードが発生します」を案内するモーダル。
+ * 初回起動時のみ「約400MBダウンロードが発生します」を案内するモーダル。
  * 実際のダウンロードはrunOCR()実行時に自動で行われる。
  */
 export const OCRSetupModal = ({ onReady }) => {
@@ -43,7 +43,7 @@ export const OCRSetupModal = ({ onReady }) => {
         <div className="ocr-modal-icon">📥</div>
         <h2>OCRデータの準備</h2>
         <p>
-          名刺の文字認識に必要なデータ（約40MB）を
+          名刺の文字認識に必要なデータ（約400MB）を
           初回スキャン時に自動でダウンロードします。<br /><br />
           Wi-Fi環境での利用を推奨します。<br />
           2回目以降はオフラインで動作します。
