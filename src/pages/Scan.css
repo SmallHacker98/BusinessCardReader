@@ -172,3 +172,23 @@
   color: var(--text-tertiary);
   text-align: right;
 }
+
+/* 初回ダウンロード案内 */
+.scan-hint {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hint-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-orange);
+}
+
+.hint-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
