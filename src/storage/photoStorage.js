@@ -72,135 +72,110 @@ export const photoStorage = {
   }
 };
 
-// ─────────────────────────────────────────
-// 画像前処理：OCR精度最大化版
-// カメラ撮影（照明ムラ・影・ピンボケ）に対応
-// ─────────────────────────────────────────
 export const preprocessImage = (file) => {
-  return new Promise((resolve) => {
+  console.log('[preprocess] start', { name: file.name, size: file.size, type: file.type });
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
 
+    img.onerror = (e) => {
+      console.error('[preprocess] img.onerror', e);
+      URL.revokeObjectURL(url);
+      reject(new Error('Image load failed'));
+    };
+
     img.onload = () => {
       URL.revokeObjectURL(url);
+      console.log('[preprocess] img loaded', { w: img.width, h: img.height });
+      try {
+        const MAX = 1600;
+        let { width, height } = img;
+        const ratio = Math.max(MAX / width, MAX / height);
+        if (ratio > 1) {
+          width  = Math.round(width  * ratio);
+          height = Math.round(height * ratio);
+        }
+        console.log('[preprocess] canvas size', { width, height });
 
-      // ── Step1: 2400px にアップスケール（小文字の認識率が大幅向上）
-      const TARGET = 2400;
-      let { width, height } = img;
-      const ratio = Math.max(TARGET / width, TARGET / height);
-      if (ratio > 1) {
-        width  = Math.round(width  * ratio);
-        height = Math.round(height * ratio);
-      }
+        const canvas = document.createElement('canvas');
+        canvas.width  = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
 
-      const canvas = document.createElement('canvas');
-      canvas.width  = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
+        ctx.filter = 'grayscale(1) contrast(1.4) brightness(1.1)';
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+        console.log('[preprocess] drawImage done');
 
-      // ── Step2: 描画（高品質スケーリング）
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // ── Step3: ピクセル操作でグレースケール + 適応的二値化
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const data = imageData.data;
-
-      // グレースケール変換
-      const gray = new Uint8ClampedArray(width * height);
-      for (let i = 0; i < data.length; i += 4) {
-        // 人間の視覚特性に合わせた重み（BT.601）
-        gray[i / 4] = Math.round(
-          data[i]     * 0.299 +  // R
-          data[i + 1] * 0.587 +  // G
-          data[i + 2] * 0.114    // B
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              console.log('[preprocess] toBlob success', { size: blob.size });
+              resolve(blob);
+            } else {
+              console.error('[preprocess] toBlob returned null');
+              reject(new Error('Canvas toBlob failed'));
+            }
+          },
+          'image/png'
         );
+      } catch (e) {
+        console.error('[preprocess] exception:', e);
+        reject(e);
       }
-
-      // 適応的二値化：局所領域の平均輝度を基準に閾値を動的に決定
-      // → 照明ムラ・影があっても文字を正しく二値化できる
-      const BLOCK = Math.round(width / 20); // ブロックサイズ（画像幅の1/20）
-      const C = 8; // 平均より C だけ暗ければ黒と判定
-
-      const binarized = new Uint8ClampedArray(width * height);
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          // 周辺ブロックの平均輝度を計算
-          let sum = 0, count = 0;
-          const x0 = Math.max(0, x - BLOCK);
-          const x1 = Math.min(width  - 1, x + BLOCK);
-          const y0 = Math.max(0, y - BLOCK);
-          const y1 = Math.min(height - 1, y + BLOCK);
-          for (let by = y0; by <= y1; by += 2) {
-            for (let bx = x0; bx <= x1; bx += 2) {
-              sum += gray[by * width + bx];
-              count++;
-            }
-          }
-          const mean = sum / count;
-          binarized[y * width + x] = gray[y * width + x] < mean - C ? 0 : 255;
-        }
-      }
-
-      // ── Step4: シャープ化（文字の輪郭を強調）
-      const sharpened = new Uint8ClampedArray(width * height);
-      const kernel = [
-        0, -1,  0,
-       -1,  5, -1,
-        0, -1,  0
-      ];
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          let val = 0;
-          let ki = 0;
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              val += binarized[(y + ky) * width + (x + kx)] * kernel[ki++];
-            }
-          }
-          sharpened[y * width + x] = Math.max(0, Math.min(255, val));
-        }
-      }
-
-      // ── Step5: RGBAに戻す（白黒）
-      for (let i = 0; i < data.length; i += 4) {
-        const v = sharpened[i / 4] ?? binarized[i / 4];
-        data[i]     = v;
-        data[i + 1] = v;
-        data[i + 2] = v;
-        data[i + 3] = 255;
-      }
-      ctx.putImageData(imageData, 0, 0);
-
-      // ── Step6: PNG で出力（可逆圧縮 → 文字品質を保持）
-      canvas.toBlob((blob) => resolve(blob), 'image/png');
     };
 
     img.src = url;
   });
 };
 
-// OCRとは別に、保存用に元画像を圧縮（プレビュー表示用）
 export const compressForStorage = (file) => {
-  return new Promise((resolve) => {
+  console.log('[compress] start', { size: file.size });
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
+
+    img.onerror = (e) => {
+      console.error('[compress] img.onerror', e);
+      URL.revokeObjectURL(url);
+      reject(new Error('Image load failed'));
+    };
+
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 1200;
-      let { width, height } = img;
-      if (width > MAX || height > MAX) {
-        const r = Math.min(MAX / width, MAX / height);
-        width  = Math.round(width  * r);
-        height = Math.round(height * r);
+      try {
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const r = Math.min(MAX / width, MAX / height);
+          width  = Math.round(width  * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              console.log('[compress] toBlob success', { size: blob.size });
+              resolve(blob);
+            } else {
+              console.error('[compress] toBlob returned null');
+              reject(new Error('Canvas toBlob failed'));
+            }
+          },
+          'image/jpeg',
+          0.85
+        );
+      } catch (e) {
+        console.error('[compress] exception:', e);
+        reject(e);
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
     };
+
     img.src = url;
   });
 };

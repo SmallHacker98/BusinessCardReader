@@ -7,7 +7,7 @@ import { preprocessImage, compressForStorage } from '../storage/photoStorage';
 import { useContacts } from '../hooks/useContacts';
 import './Scan.css';
 
-const STEPS = { SELECT: 'select', PREVIEW: 'preview', OCR: 'ocr', EDIT: 'edit' };
+const STEPS = { SELECT: 'select', LOADING: 'loading', PREVIEW: 'preview', OCR: 'ocr', EDIT: 'edit' };
 
 const EMPTY_FORM = {
   name: '', companyName: '', department: '',
@@ -17,7 +17,8 @@ const EMPTY_FORM = {
 export const Scan = () => {
   const navigate = useNavigate();
   const { saveContact } = useContacts();
-  const fileRef = useRef();
+  const fileRef    = useRef();
+  const galleryRef = useRef();
 
   const [step, setStep] = useState(STEPS.SELECT);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -30,27 +31,53 @@ export const Scan = () => {
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
+    console.log('[Scan] handleFileSelect', file ? { name: file.name, size: file.size } : 'no file');
     if (!file) return;
     setError(null);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    const [ocr, storage] = await Promise.all([
-      preprocessImage(file),
-      compressForStorage(file),
-    ]);
-    setOcrBlob(ocr);
-    setStorageBlob(storage);
-    setStep(STEPS.PREVIEW);
+    setStep(STEPS.LOADING);
+
+    try {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      console.log('[Scan] previewUrl set, starting preprocessing...');
+
+      const [ocr, storage] = await Promise.all([
+        preprocessImage(file),
+        compressForStorage(file),
+      ]);
+      console.log('[Scan] preprocessing done', { ocrBlob: ocr?.size, storageBlob: storage?.size });
+      setOcrBlob(ocr);
+      setStorageBlob(storage);
+      setStep(STEPS.PREVIEW);
+    } catch (err) {
+      console.error('[Scan] handleFileSelect error:', err);
+      setError(`画像の読み込みに失敗しました: ${err.message}`);
+      setStep(STEPS.SELECT);
+    }
   };
 
   const handleOCR = async () => {
-    if (!ocrBlob) return;
+    console.log('[Scan] handleOCR called', { ocrBlob: ocrBlob?.size });
+    if (!ocrBlob) {
+      console.error('[Scan] ocrBlob is null!');
+      setError('OCR用の画像データがありません。もう一度撮影してください。');
+      return;
+    }
     setStep(STEPS.OCR);
     setOcrProgress(0);
     setError(null);
+
     try {
-      const result = await runOCR(ocrBlob, setOcrProgress);
+      console.log('[Scan] calling runOCR...');
+      const result = await runOCR(ocrBlob, (p) => {
+        console.log('[Scan] OCR progress:', p);
+        setOcrProgress(p);
+      });
+      console.log('[Scan] runOCR done:', result?.text?.slice(0, 100));
+
       const parsed = parseFields(result);
+      console.log('[Scan] parsed fields:', parsed);
+
       setForm({
         name:        parsed.name        || '',
         companyName: parsed.companyName || '',
@@ -63,8 +90,8 @@ export const Scan = () => {
       });
       setStep(STEPS.EDIT);
     } catch (err) {
-      console.error(err);
-      setError('OCR処理中にエラーが発生しました。手動で入力してください。');
+      console.error('[Scan] OCR error:', err);
+      setError(`OCRエラー: ${err.message}`);
       setForm(EMPTY_FORM);
       setStep(STEPS.EDIT);
     }
@@ -84,7 +111,8 @@ export const Scan = () => {
     try {
       const contact = await saveContact(form, storageBlob);
       navigate(`/contact/${contact.id}`, { replace: true });
-    } catch {
+    } catch (e) {
+      console.error('[Scan] save error:', e);
       setError('保存に失敗しました');
     } finally {
       setSaving(false);
@@ -99,7 +127,8 @@ export const Scan = () => {
     setForm(EMPTY_FORM);
     setStep(STEPS.SELECT);
     setError(null);
-    if (fileRef.current) fileRef.current.value = '';
+    if (fileRef.current)    fileRef.current.value    = '';
+    if (galleryRef.current) galleryRef.current.value = '';
   };
 
   const updateForm = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -116,7 +145,6 @@ export const Scan = () => {
 
       <div className="page-content scroll-area">
 
-        {/* ── SELECT ── */}
         {step === STEPS.SELECT && (
           <div className="scan-select fade-in">
             <div className="scan-hero">
@@ -124,19 +152,18 @@ export const Scan = () => {
               <h2>名刺をスキャン</h2>
               <p>カメラで撮影するか<br />写真を選んでください</p>
             </div>
+            {error && <div className="error-banner">{error}</div>}
             <div className="scan-actions">
               <input ref={fileRef} type="file" accept="image/*" capture="environment"
                 onChange={handleFileSelect} style={{ display: 'none' }} id="camera-input" />
               <label htmlFor="camera-input" className="btn btn-primary scan-btn">
                 📷 カメラで撮影
               </label>
-
-              <input type="file" accept="image/*"
+              <input ref={galleryRef} type="file" accept="image/*"
                 onChange={handleFileSelect} style={{ display: 'none' }} id="gallery-input" />
               <label htmlFor="gallery-input" className="btn btn-secondary scan-btn">
                 🖼 写真を選択
               </label>
-
               <button className="btn btn-ghost scan-btn" onClick={handleManual}>
                 ✏️ 手動で入力
               </button>
@@ -144,7 +171,15 @@ export const Scan = () => {
           </div>
         )}
 
-        {/* ── PREVIEW ── */}
+        {step === STEPS.LOADING && (
+          <div className="scan-ocr fade-in">
+            <div className="ocr-status">
+              <div className="spinner" style={{ width: 44, height: 44, borderWidth: 3 }} />
+              <h3>画像を準備中...</h3>
+            </div>
+          </div>
+        )}
+
         {step === STEPS.PREVIEW && (
           <div className="scan-preview fade-in">
             <div className="preview-image-wrap">
@@ -161,7 +196,6 @@ export const Scan = () => {
           </div>
         )}
 
-        {/* ── OCR中 ── */}
         {step === STEPS.OCR && (
           <div className="scan-ocr fade-in">
             <div className="ocr-status">
@@ -176,7 +210,6 @@ export const Scan = () => {
           </div>
         )}
 
-        {/* ── EDIT ── */}
         {step === STEPS.EDIT && (
           <div className="scan-edit fade-in">
             {previewUrl && (
@@ -185,7 +218,6 @@ export const Scan = () => {
               </div>
             )}
             {error && <div className="error-banner">{error}</div>}
-
             <div className="edit-form">
               <div className="section">
                 <div className="section-title">基本情報</div>
@@ -196,7 +228,6 @@ export const Scan = () => {
                   <FormTextarea label="部署名" value={form.department} onChange={v => updateForm('department', v)} placeholder={"営業本部\n第一営業部\n法人営業課"} last />
                 </div>
               </div>
-
               <div className="section">
                 <div className="section-title">連絡先</div>
                 <div className="card form-card">
@@ -205,7 +236,6 @@ export const Scan = () => {
                   <FormRow label="メール" value={form.email} onChange={v => updateForm('email', v)} placeholder="taro@example.com" type="email" last />
                 </div>
               </div>
-
               <div className="section">
                 <div className="section-title">住所</div>
                 <div className="card form-card">
@@ -213,7 +243,6 @@ export const Scan = () => {
                     placeholder={"〒100-0001\n東京都千代田区千代田1-1"} last />
                 </div>
               </div>
-
               <div className="section" style={{ paddingBottom: 40 }}>
                 <button className="btn btn-primary" style={{ width: '100%' }}
                   onClick={handleSave} disabled={saving}>
@@ -231,25 +260,16 @@ export const Scan = () => {
 const FormRow = ({ label, value, onChange, placeholder, type = 'text', last }) => (
   <div className={`form-row ${last ? 'last' : ''}`}>
     <span className="form-label">{label}</span>
-    <input
-      className="form-input"
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-    />
+    <input className="form-input" type={type} value={value}
+      onChange={e => onChange(e.target.value)} placeholder={placeholder} />
   </div>
 );
 
 const FormTextarea = ({ label, value, onChange, placeholder, last }) => (
   <div className={`form-row form-row-textarea ${last ? 'last' : ''}`}>
     <span className="form-label form-label-top">{label}</span>
-    <textarea
-      className="form-textarea"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={Math.max(2, (value || '').split('\n').length)}
-    />
+    <textarea className="form-textarea" value={value}
+      onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      rows={Math.max(2, (value || '').split('\n').length)} />
   </div>
 );
